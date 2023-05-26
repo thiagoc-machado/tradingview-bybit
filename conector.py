@@ -50,8 +50,9 @@ conn.close()
 
 @app.route('/order', methods=['POST'])
 def order():
-
     global open_order_id
+    side = request.form.get('side')
+    print(f'Abrindo ordem {side} ({QTD} {SYMBOL})')
     
     # Recupera o preço atual do mercado
     response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={SYMBOL}')
@@ -62,7 +63,6 @@ def order():
     stop_loss = current_price * STOP_LOSS  # 20% abaixo do preço atual do mercado
     take_profit = current_price * TAKE_PROFIT  # 2% acima do preço atual do mercado
 
-    side = request.form.get('side')
 
     params = {
         'api_key': API_KEY,
@@ -85,8 +85,7 @@ def order():
     data = response.json()
     print('Response:', data)
     # Armazena o order_id da ordem aberta
-    open_order_id = data['result']['order_id']
-    print('Open order ID:', open_order_id)
+    # open_order_id = data['result']['order_id']
     # Armazena as informações da operação no banco de dados SQLite
     conn = sqlite3.connect('trading.db')
     c = conn.cursor()
@@ -106,6 +105,9 @@ def close():
     if open_order_id is None:
         return 'No open order', 400
 
+    side = request.form.get('side')
+    print(f'Abrindo ordem {side} ({QTD} {SYMBOL})')
+
     # Recupera o preço atual do mercado
     response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={SYMBOL}')
     data = response.json()
@@ -115,21 +117,20 @@ def close():
     stop_loss = current_price * STOP_LOSS # 20% abaixo do preço atual do mercado
     take_profit = current_price * TAKE_PROFIT  # 2% acima do preço atual do mercado
 
-    side = request.form.get('side')
 
     params = {
         'api_key': API_KEY,
         'symbol': SYMBOL,
         'side': side,
-        'order_type': ORDER_TIPE,
-        'qty': QTD,
-        'time_in_force': 'GoodTillCancel',
-        'leverage': LEVERAGE,
-        'take_profit': take_profit,
-        'stop_loss': stop_loss,
-        'reduce_only': REDUCE_ONLY,  # Adiciona o parâmetro reduce_only
-        'close_on_trigger': CLOSE_ON_TRIGGER,  # Adiciona o parâmetro close_on_trigger
-        'order_id': open_order_id,
+        # 'order_type': ORDER_TIPE,
+        # 'qty': QTD,
+        # 'time_in_force': 'GoodTillCancel',
+        # 'leverage': LEVERAGE,
+        # 'take_profit': take_profit,
+        # 'stop_loss': stop_loss,
+        'reduce_only': True,  # Adiciona o parâmetro reduce_only
+        # 'close_on_trigger': CLOSE_ON_TRIGGER,  # Adiciona o parâmetro close_on_trigger
+        # 'order_id': open_order_id,
         'timestamp': TIMESTAMP
     }
 
