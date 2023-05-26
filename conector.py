@@ -5,6 +5,7 @@ import time
 import sqlite3
 from dotenv import load_dotenv
 import os
+import hashlib
 
 load_dotenv()
 
@@ -23,7 +24,6 @@ QTD = 1  # Quantidade de ordem
 LEVERAGE = 5  # Alavancagem
 TAKE_PROFIT = 1.02  # Take profit
 STOP_LOSS = 0.8  # Stop loss
-TIMESTAMP = int(time.time() * 1000)
 REDUCE_ONLY =  False,  # Adiciona o parâmetro reduce_only
 CLOSE_ON_TRIGGER = False,  # Adiciona o parâmetro close_on_trigger
 
@@ -52,7 +52,7 @@ conn.close()
 def order():
     global open_order_id
     side = request.form.get('side')
-    print(f'Abrindo ordem {side} ({QTD} {SYMBOL})')
+    print(f'Abrindo ordem {side} - {QTD} - {SYMBOL}')
     
     # Recupera o preço atual do mercado
     response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={SYMBOL}')
@@ -62,7 +62,7 @@ def order():
     # Calcula o stop loss e o take profit com base no preço atual do mercado
     stop_loss = current_price * STOP_LOSS  # 20% abaixo do preço atual do mercado
     take_profit = current_price * TAKE_PROFIT  # 2% acima do preço atual do mercado
-
+    timestamp = int(time.time() * 1000)
 
     params = {
         'api_key': API_KEY,
@@ -76,7 +76,7 @@ def order():
         'stop_loss': stop_loss,
         'reduce_only': REDUCE_ONLY,  # Adiciona o parâmetro reduce_only
         'close_on_trigger': CLOSE_ON_TRIGGER,  # Adiciona o parâmetro close_on_trigger
-        'timestamp': TIMESTAMP
+        'timestamp': timestamp
     }
 
     params['sign'] = generate_signature(params)
@@ -106,7 +106,7 @@ def close():
         return 'No open order', 400
 
     side = request.form.get('side')
-    print(f'Abrindo ordem {side} ({QTD} {SYMBOL})')
+    print(f'Fechando ordem {side} - {QTD} - {SYMBOL}')
 
     # Recupera o preço atual do mercado
     response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={SYMBOL}')
@@ -116,7 +116,7 @@ def close():
     # Calcula o stop loss e o take profit com base no preço atual do mercado
     stop_loss = current_price * STOP_LOSS # 20% abaixo do preço atual do mercado
     take_profit = current_price * TAKE_PROFIT  # 2% acima do preço atual do mercado
-
+    timestamp = int(time.time() * 1000)
 
     params = {
         'api_key': API_KEY,
@@ -131,7 +131,7 @@ def close():
         'reduce_only': True,  # Adiciona o parâmetro reduce_only
         # 'close_on_trigger': CLOSE_ON_TRIGGER,  # Adiciona o parâmetro close_on_trigger
         # 'order_id': open_order_id,
-        'timestamp': TIMESTAMP
+        'timestamp': timestamp
     }
 
     params['sign'] = generate_signature(params)
@@ -174,6 +174,7 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
     # Calcula o stop loss e o take profit com base no preço atual do mercado
     stop_loss = current_price * STOP_LOSS  # 20% abaixo do preço atual do mercado
     take_profit = current_price * TAKE_PROFIT  # 2% acima do preço atual do mercado
+    timestamp = int(time.time() * 1000)
 
     params = {
         'api_key': API_KEY,
@@ -187,7 +188,7 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
         'stop_loss': stop_loss,
         'reduce_only': False,
         'close_on_trigger': False,
-        'timestamp': TIMESTAMP
+        'timestamp': timestamp
     }
 
     params['sign'] = generate_signature(params)
@@ -209,7 +210,8 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
 def generate_signature(params):
     sorted_params = sorted(params.items())
     signature_payload = '&'.join(f'{k}={v}' for k, v in sorted_params)
-    return hmac.new(API_SECRET.encode(), signature_payload.encode(), 'sha256').hexdigest()
+    return hmac.new(bytes(API_SECRET, 'latin-1'), msg=bytes(signature_payload, 'latin-1'), digestmod=hashlib.sha256).hexdigest()
+
 
 @app.route('/trades', methods=['GET'])
 def trades():
