@@ -17,6 +17,16 @@ API_SECRET = os.getenv('BYBIT_API_SECRET')
 BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
 open_order_id = None
 
+SYMBOL = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
+ORDER_TIPE = 'Market'  # Tipo de ordem
+QTD = 1  # Quantidade de ordem
+LEVERAGE = 5  # Alavancagem
+TAKE_PROFIT = 1.02  # Take profit
+STOP_LOSS = 0.8  # Stop loss
+TIMESTAMP = int(time.time() * 1000)
+REDUCE_ONLY =  False,  # Adiciona o parâmetro reduce_only
+CLOSE_ON_TRIGGER = False,  # Adiciona o parâmetro close_on_trigger
+
 # Cria o banco de dados SQLite e a tabela de operações
 conn = sqlite3.connect('trading.db')
 c = conn.cursor()
@@ -42,37 +52,31 @@ conn.close()
 def order():
 
     global open_order_id
-    symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
+    
     # Recupera o preço atual do mercado
-    response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
+    response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={SYMBOL}')
     data = response.json()
     current_price = float(data['result'][0]['last_price'])
 
     # Calcula o stop loss e o take profit com base no preço atual do mercado
-    stop_loss = current_price * 0.8  # 20% abaixo do preço atual do mercado
-    take_profit = current_price * 1.02  # 2% acima do preço atual do mercado
+    stop_loss = current_price * STOP_LOSS  # 20% abaixo do preço atual do mercado
+    take_profit = current_price * TAKE_PROFIT  # 2% acima do preço atual do mercado
 
     side = request.form.get('side')
-    order_type = 'Market'  # Tipo de ordem
-    qty = 1  # Quantidade de ordem
-    leverage = 5  # Alavancagem
-    take_profit = take_profit  # Take profit
-    stop_loss = stop_loss  # Stop loss
-    timestamp = int(time.time() * 1000)
 
     params = {
         'api_key': API_KEY,
-        'symbol': symbol,
+        'symbol': SYMBOL,
         'side': side,
-        'order_type': order_type,
-        'qty': qty,
+        'order_type': ORDER_TIPE,
+        'qty': QTD,
         'time_in_force': 'GoodTillCancel',
-        'leverage': leverage,
+        'leverage': LEVERAGE,
         'take_profit': take_profit,
         'stop_loss': stop_loss,
-        'reduce_only': False,  # Adiciona o parâmetro reduce_only
-        'close_on_trigger': False,  # Adiciona o parâmetro close_on_trigger
-        'timestamp': timestamp
+        'reduce_only': REDUCE_ONLY,  # Adiciona o parâmetro reduce_only
+        'close_on_trigger': CLOSE_ON_TRIGGER,  # Adiciona o parâmetro close_on_trigger
+        'timestamp': TIMESTAMP
     }
 
     params['sign'] = generate_signature(params)
@@ -89,7 +93,7 @@ def order():
     c.execute('''
         INSERT INTO trades (symbol, side, order_type, qty, leverage, take_profit, stop_loss)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss))
+    ''', (SYMBOL, side, ORDER_TIPE, QTD, LEVERAGE, take_profit, stop_loss))
     conn.commit()
     conn.close()
 
@@ -101,39 +105,32 @@ def close():
     global open_order_id
     if open_order_id is None:
         return 'No open order', 400
-    symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
 
     # Recupera o preço atual do mercado
-    response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
+    response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={SYMBOL}')
     data = response.json()
     current_price = float(data['result'][0]['last_price'])
 
     # Calcula o stop loss e o take profit com base no preço atual do mercado
-    stop_loss = current_price * 0.8  # 20% abaixo do preço atual do mercado
-    take_profit = current_price * 1.02  # 2% acima do preço atual do mercado
+    stop_loss = current_price * STOP_LOSS # 20% abaixo do preço atual do mercado
+    take_profit = current_price * TAKE_PROFIT  # 2% acima do preço atual do mercado
 
     side = request.form.get('side')
-    order_type = 'Market'  # Tipo de ordem
-    qty = 1  # Quantidade de ordem
-    leverage = 5  # Alavancagem
-    take_profit = ''  # Take profit
-    stop_loss = ''  # Stop loss
-    timestamp = int(time.time() * 1000)
 
     params = {
         'api_key': API_KEY,
-        'symbol': symbol,
+        'symbol': SYMBOL,
         'side': side,
-        'order_type': order_type,
-        'qty': qty,
+        'order_type': ORDER_TIPE,
+        'qty': QTD,
         'time_in_force': 'GoodTillCancel',
-        'leverage': leverage,
+        'leverage': LEVERAGE,
         'take_profit': take_profit,
         'stop_loss': stop_loss,
-        'reduce_only': False,  # Adiciona o parâmetro reduce_only
-        'close_on_trigger': False,  # Adiciona o parâmetro close_on_trigger
+        'reduce_only': REDUCE_ONLY,  # Adiciona o parâmetro reduce_only
+        'close_on_trigger': CLOSE_ON_TRIGGER,  # Adiciona o parâmetro close_on_trigger
         'order_id': open_order_id,
-        'timestamp': timestamp
+        'timestamp': TIMESTAMP
     }
 
     params['sign'] = generate_signature(params)
@@ -147,7 +144,7 @@ def close():
     c.execute('''
         INSERT INTO trades (symbol, side, order_type, qty, leverage, take_profit, stop_loss)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss))
+    ''', (SYMBOL, side, ORDER_TIPE, QTD, LEVERAGE, take_profit, stop_loss))
     conn.commit()
     conn.close()
     # Limpa o order_id da ordem aberta
@@ -159,18 +156,11 @@ def webhook():
     data = request.get_json()
     print('Received data:', data)
 
-    # Aqui você pode extrair os detalhes do sinal do TradingView do objeto de dados
-    # e usar essas informações para criar uma ordem na Bybit
-
-    symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
     side = 'Buy'  # Substitua pelo lado da ordem (Buy ou Sell)
-    order_type = 'Market'  # Tipo de ordem
-    qty = 1  # Quantidade de ordem
-    leverage = 5  # Alavancagem
     take_profit = 2  # Take profit
     stop_loss = ''  # Stop loss
 
-    create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss)
+    create_order(SYMBOL, side, ORDER_TIPE, QTD, LEVERAGE, take_profit, stop_loss)
 
     return 'OK', 200
 
@@ -181,10 +171,9 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
     current_price = float(data['result'][0]['last_price'])
 
     # Calcula o stop loss e o take profit com base no preço atual do mercado
-    stop_loss = current_price * 0.8  # 20% abaixo do preço atual do mercado
-    take_profit = current_price * 1.02  # 2% acima do preço atual do mercado
+    stop_loss = current_price * STOP_LOSS  # 20% abaixo do preço atual do mercado
+    take_profit = current_price * TAKE_PROFIT  # 2% acima do preço atual do mercado
 
-    timestamp = int(time.time() * 1000)
     params = {
         'api_key': API_KEY,
         'side': side,
@@ -197,7 +186,7 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
         'stop_loss': stop_loss,
         'reduce_only': False,
         'close_on_trigger': False,
-        'timestamp': timestamp
+        'timestamp': TIMESTAMP
     }
 
     params['sign'] = generate_signature(params)
