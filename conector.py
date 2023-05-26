@@ -188,6 +188,7 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
     response = requests.post(f'{BYBIT_API_URL}/private/linear/order/create', params=params)
     print('Response:', response.json())
 
+
     # Armazena as informações da operação no banco de dados SQLite
     conn = sqlite3.connect('trading.db')
     c = conn.cursor()
@@ -200,8 +201,8 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
 
 def generate_signature(params):
     sorted_params = sorted(params.items(), key=lambda x: x[0].lower())
-    signature_payload = '&'.join(f'{k}={str(v)}' for k, v in sorted_params)
-    return hmac.new(bytes(API_SECRET, 'latin-1'), msg=bytes(signature_payload, 'latin-1'), digestmod=hashlib.sha256).hexdigest()
+    signature_payload = '&'.join(f'{k}={v}' for k, v in sorted_params)
+    return hmac.new(bytes(API_SECRET, 'latin-1'), msg=bytes(signature_payload, 'latin-1'), digestmod=hashlib.sha256).hexdigest().upper()
 
 
 @app.route('/trades', methods=['GET'])
