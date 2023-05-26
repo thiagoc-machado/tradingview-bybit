@@ -2,64 +2,83 @@
 <html>
 <head>
     <title>Trades</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+    <style>
+        body {
+            background-color: #222;
+            color: #fff;
+        }
+
+        .table-container {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+
+        .table-container::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .table-container::-webkit-scrollbar-thumb {
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+
+        .table-container::-webkit-scrollbar-track {
+            background-color: transparent;
+        }
+    </style>
 </head>
 <body>
-    <h1>Trades</h1>
+    <h1 class="title">Trades</h1>
     <br>
-    <button id="openLong">Abrir Long</button>
-    <button id="openShort">Abrir Short</button>
-    <button id="closeLong">Fechar Long</button>
-    <button id="closeShort">Fechar Short</button>
+    <div class="buttons">
+        <button id="openLong" class="button is-primary">Abrir Long</button>
+        <button id="openShort" class="button is-primary">Abrir Short</button>
+        <button id="closeLong" class="button is-danger">Fechar Long</button>
+        <button id="closeShort" class="button is-danger">Fechar Short</button>
+        <button id="export" class="button is-link">Exportar para Excel</button>
+        <a href="{{ url_for('logout') }}" class="button is-primary">Logout</a>
+    </div>
 
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('#openLong').click(function() {
-                $.post('/order', { side: 'Buy' });
-            });
-
-            $('#openShort').click(function() {
-                $.post('/order', { side: 'Sell' });
-            });
-
-            $('#closeLong').click(function() {
-                $.post('/close', { side: 'Sell' });
-            });
-
-            $('#closeShort').click(function() {
-                $.post('/close', { side: 'Buy' });
-            });
-        });
-    </script>
-    <table>
-        <tr>
-            <th>Symbol</th>
-            <th>Side</th>
-            <th>Order Type</th>
-            <th>Qty</th>
-            <th>Leverage</th>
-            <th>Take Profit</th>
-            <th>Stop Loss</th>
-            <th>Entry Price</th>
-            <th>Exit Price</th>
-            <th>Profit/Loss</th>
-        </tr>
-        {% for trade in trades %}
-        <tr>
-            <td>{{ trade[1] }}</td>
-            <td>{{ trade[2] }}</td>
-            <td>{{ trade[3] }}</td>
-            <td>{{ trade[4] }}</td>
-            <td>{{ trade[5] }}</td>
-            <td>{{ trade[6] }}</td>
-            <td>{{ trade[7] }}</td>
-            <td>{{ trade[8] }}</td>
-            <td>{{ trade[9] }}</td>
-            <td>{{ trade[10] }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    
-
+    <div class="table-container">
+        <table class="table is-bordered is-fullwidth">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Side</th>
+                    <th>Order Type</th>
+                    <th>Qty</th>
+                    <th>Leverage</th>
+                    <th>Take Profit</th>
+                    <th>Stop Loss</th>
+                    <th>Entry Price</th>
+                    <th>Exit Price</th>
+                    <th>Profit/Loss</th>
+                    <th>Entry Time</th>
+                    <th>Exit Time</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for trade in trades %}
+                <tr>
+                    <td>{{ trade.symbol }}</td>
+                    <td>{{ trade.side }}</td>
+                    <td>{{ trade.order_type }}</td>
+                    <td>{{ trade.qty }}</td>
+                    <td>{{ trade.leverage }}</td>
+                    <td>{{ trade.take_profit }}</td>
+                    <td>{{ trade.stop_loss }}</td>
+                    <td>{{ trade.entry_price }}</td>
+                    <td>{{ trade.exit_price }}</td>
+                    <td>{{ trade.profit_loss }}</td>
+                    <td>{{ trade.entry_time }}</td>
+                    <td>{{ trade.exit_time }}</td>
+                    <td>{{ trade.duration }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>
