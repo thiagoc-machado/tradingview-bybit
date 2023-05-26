@@ -37,6 +37,88 @@ c.execute('''
 conn.commit()
 conn.close()
 
+@app.route('/order', methods=['POST'])
+def order():
+    side = request.form.get('side')
+    symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
+    order_type = 'Market'  # Tipo de ordem
+    qty = 1  # Quantidade de ordem
+    leverage = 5  # Alavancagem
+    take_profit = 2  # Take profit
+    stop_loss = 20  # Stop loss
+    timestamp = int(time.time() * 1000)
+
+    params = {
+        'api_key': API_KEY,
+        'symbol': symbol,
+        'side': side,
+        'order_type': order_type,
+        'qty': qty,
+        'time_in_force': 'GoodTillCancel',
+        'leverage': leverage,
+        'take_profit': take_profit,
+        'stop_loss': stop_loss,
+        'timestamp': timestamp
+    }
+
+    params['sign'] = generate_signature(params)
+
+    response = requests.post(f'{BYBIT_API_URL}/v2/private/order/create', params=params)
+    print('Response:', response.json())
+
+    # Armazena as informações da operação no banco de dados SQLite
+    conn = sqlite3.connect('trading.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO trades (symbol, side, order_type, qty, leverage, take_profit, stop_loss)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss))
+    conn.commit()
+    conn.close()
+
+@app.route('/close', methods=['POST'])
+
+def close():
+    side = request.form.get('side')
+    symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
+    order_type = 'Market'  # Tipo de ordem
+    qty = 1  # Quantidade de ordem
+    leverage = 5  # Alavancagem
+    take_profit = 2  # Take profit
+    stop_loss = 20  # Stop loss
+    timestamp = int(time.time() * 1000)
+
+    params = {
+        'api_key': API_KEY,
+        'symbol': symbol,
+        'side': side,
+        'order_type': order_type,
+        'qty': qty,
+        'time_in_force': 'GoodTillCancel',
+        'leverage': leverage,
+        'take_profit': take_profit,
+        'stop_loss': stop_loss,
+        'timestamp': timestamp
+    }
+
+    params['sign'] = generate_signature(params)
+
+    response = requests.post(f'{BYBIT_API_URL}/v2/private/order/create', params=params)
+    print('Response:', response.json())
+
+    # Armazena as informações da operação no banco de dados SQLite
+    conn = sqlite3.connect('trading.db')
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO trades (symbol, side, order_type, qty, leverage, take_profit, stop_loss)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss))
+    conn.commit()
+    conn.close()
+
+
+    return 'OK', 200
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     data = request.get_json()
@@ -45,7 +127,7 @@ def webhook():
     # Aqui você pode extrair os detalhes do sinal do TradingView do objeto de dados
     # e usar essas informações para criar uma ordem na Bybit
 
-    symbol = 'USDTDOGE'  # Substitua pelo símbolo que você deseja operar
+    symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
     side = 'Buy'  # Substitua pelo lado da ordem (Buy ou Sell)
     order_type = 'Market'  # Tipo de ordem
     qty = 1  # Quantidade de ordem
