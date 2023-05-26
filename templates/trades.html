@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trades</title>
+</head>
+<body>
+    <h1>Trades</h1>
+    <table>
+        <tr>
+            <th>Symbol</th>
+            <th>Side</th>
+            <th>Order Type</th>
+            <th>Qty</th>
+            <th>Leverage</th>
+            <th>Take Profit</th>
+            <th>Stop Loss</th>
+            <th>Entry Price</th>
+            <th>Exit Price</th>
+            <th>Profit/Loss</th>
+        </tr>
+        {% for trade in trades %}
+        <tr>
+            <td>{{ trade[1] }}</td>
+            <td>{{ trade[2] }}</td>
+            <td>{{ trade[3] }}</td>
+            <td>{{ trade[4] }}</td>
+            <td>{{ trade[5] }}</td>
+            <td>{{ trade[6] }}</td>
+            <td>{{ trade[7] }}</td>
+            <td>{{ trade[8] }}</td>
+            <td>{{ trade[9] }}</td>
+            <td>{{ trade[10] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <button id="openLong">Abrir Long</button>
+    <button id="openShort">Abrir Short</button>
+    <button id="closeLong">Fechar Long</button>
+    <button id="closeShort">Fechar Short</button>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#openLong').click(function() {
+                $.post('/order', { side: 'Buy' });
+            });
+
+            $('#openShort').click(function() {
+                $.post('/order', { side: 'Sell' });
+            });
+
+            $('#closeLong').click(function() {
+                $.post('/close', { side: 'Sell' });
+            });
+
+            $('#closeShort').click(function() {
+                $.post('/close', { side: 'Buy' });
+            });
+        });
+    </script>
+
+</body>
+</html>

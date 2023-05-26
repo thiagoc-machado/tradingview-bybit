@@ -1,0 +1,20 @@
+# SQLite databases
+*.db
+
+# Python byte-compiled files
+*.pyc
+*.pyo
+__pycache__/
+
+# Python virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Log files
+*.log
+
+# Configuration files
+*.cfg
+*.ini
