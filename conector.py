@@ -166,16 +166,7 @@ def webhook():
     return 'OK', 200
 
 def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss):
-    # Recupera o preço atual do mercado
-    response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
-    data = response.json()
-    current_price = float(data['result'][0]['last_price'])
-
-    # Calcula o stop loss e o take profit com base no preço atual do mercado
-    stop_loss = current_price * STOP_LOSS  # 20% abaixo do preço atual do mercado
-    take_profit = current_price * TAKE_PROFIT  # 2% acima do preço atual do mercado
     timestamp = int(time.time() * 1000)
-
     params = {
         'api_key': API_KEY,
         'side': side,
@@ -184,18 +175,18 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
         'qty': qty,
         'time_in_force': 'GoodTillCancel',
         'leverage': leverage,
-        'take_profit': take_profit,
-        'stop_loss': stop_loss,
+        'take_profit': '{:.8f}'.format(take_profit),  # Formata para 8 casas decimais
+        'stop_loss': '{:.8f}'.format(stop_loss),  # Formata para 8 casas decimais
         'reduce_only': False,
         'close_on_trigger': False,
         'timestamp': timestamp
     }
 
-    params['sign'] = generate_signature(params)
+    signature = generate_signature(params)
+    params['sign'] = signature
 
     response = requests.post(f'{BYBIT_API_URL}/private/linear/order/create', params=params)
     print('Response:', response.json())
-
 
     # Armazena as informações da operação no banco de dados SQLite
     conn = sqlite3.connect('trading.db')
@@ -208,8 +199,8 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
     conn.close()
 
 def generate_signature(params):
-    sorted_params = sorted(params.items())
-    signature_payload = '&'.join(f'{k}={v}' for k, v in sorted_params)
+    sorted_params = sorted(params.items(), key=lambda x: x[0].lower())
+    signature_payload = '&'.join(f'{k}={str(v)}' for k, v in sorted_params)
     return hmac.new(bytes(API_SECRET, 'latin-1'), msg=bytes(signature_payload, 'latin-1'), digestmod=hashlib.sha256).hexdigest()
 
 

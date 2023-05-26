@@ -5,6 +5,32 @@
 </head>
 <body>
     <h1>Trades</h1>
+    <br>
+    <button id="openLong">Abrir Long</button>
+    <button id="openShort">Abrir Short</button>
+    <button id="closeLong">Fechar Long</button>
+    <button id="closeShort">Fechar Short</button>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#openLong').click(function() {
+                $.post('/order', { side: 'Buy' });
+            });
+
+            $('#openShort').click(function() {
+                $.post('/order', { side: 'Sell' });
+            });
+
+            $('#closeLong').click(function() {
+                $.post('/close', { side: 'Sell' });
+            });
+
+            $('#closeShort').click(function() {
+                $.post('/close', { side: 'Buy' });
+            });
+        });
+    </script>
     <table>
         <tr>
             <th>Symbol</th>
@@ -33,31 +59,7 @@
         </tr>
         {% endfor %}
     </table>
-    <button id="openLong">Abrir Long</button>
-    <button id="openShort">Abrir Short</button>
-    <button id="closeLong">Fechar Long</button>
-    <button id="closeShort">Fechar Short</button>
-
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('#openLong').click(function() {
-                $.post('/order', { side: 'Buy' });
-            });
-
-            $('#openShort').click(function() {
-                $.post('/order', { side: 'Sell' });
-            });
-
-            $('#closeLong').click(function() {
-                $.post('/close', { side: 'Sell' });
-            });
-
-            $('#closeShort').click(function() {
-                $.post('/close', { side: 'Buy' });
-            });
-        });
-    </script>
+    
 
 </body>
 </html>
