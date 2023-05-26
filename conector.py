@@ -16,6 +16,7 @@ API_SECRET = os.getenv('BYBIT_API_SECRET')
 
 BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
 
+
 # Cria o banco de dados SQLite e a tabela de operações
 conn = sqlite3.connect('trading.db')
 c = conn.cursor()
@@ -39,13 +40,23 @@ conn.close()
 
 @app.route('/order', methods=['POST'])
 def order():
-    side = request.form.get('side')
+
     symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
+    # Recupera o preço atual do mercado
+    response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
+    data = response.json()
+    current_price = float(data['result'][0]['last_price'])
+
+    # Calcula o stop loss e o take profit com base no preço atual do mercado
+    stop_loss = current_price * 0.8  # 20% abaixo do preço atual do mercado
+    take_profit = current_price * 1.02  # 2% acima do preço atual do mercado
+
+    side = request.form.get('side')
     order_type = 'Market'  # Tipo de ordem
     qty = 1  # Quantidade de ordem
     leverage = 5  # Alavancagem
-    take_profit = 2  # Take profit
-    stop_loss = 20  # Stop loss
+    take_profit = take_profit  # Take profit
+    stop_loss = stop_loss  # Stop loss
     timestamp = int(time.time() * 1000)
 
     params = {
@@ -58,12 +69,14 @@ def order():
         'leverage': leverage,
         'take_profit': take_profit,
         'stop_loss': stop_loss,
+        'reduce_only': False,  # Adiciona o parâmetro reduce_only
+        'close_on_trigger': False,  # Adiciona o parâmetro close_on_trigger
         'timestamp': timestamp
     }
 
     params['sign'] = generate_signature(params)
 
-    response = requests.post(f'{BYBIT_API_URL}/v2/private/order/create', params=params)
+    response = requests.post(f'{BYBIT_API_URL}/private/linear/order/create', params=params)
     print('Response:', response.json())
 
     # Armazena as informações da operação no banco de dados SQLite
@@ -75,17 +88,29 @@ def order():
     ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss))
     conn.commit()
     conn.close()
+
+    return 'OK', 200
 
 @app.route('/close', methods=['POST'])
 
 def close():
-    side = request.form.get('side')
     symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
+
+    # Recupera o preço atual do mercado
+    response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
+    data = response.json()
+    current_price = float(data['result'][0]['last_price'])
+
+    # Calcula o stop loss e o take profit com base no preço atual do mercado
+    stop_loss = current_price * 0.8  # 20% abaixo do preço atual do mercado
+    take_profit = current_price * 1.02  # 2% acima do preço atual do mercado
+
+    side = request.form.get('side')
     order_type = 'Market'  # Tipo de ordem
     qty = 1  # Quantidade de ordem
     leverage = 5  # Alavancagem
-    take_profit = 2  # Take profit
-    stop_loss = 20  # Stop loss
+    take_profit = ''  # Take profit
+    stop_loss = ''  # Stop loss
     timestamp = int(time.time() * 1000)
 
     params = {
@@ -98,12 +123,14 @@ def close():
         'leverage': leverage,
         'take_profit': take_profit,
         'stop_loss': stop_loss,
+        'reduce_only': False,  # Adiciona o parâmetro reduce_only
+        'close_on_trigger': False,  # Adiciona o parâmetro close_on_trigger
         'timestamp': timestamp
     }
 
     params['sign'] = generate_signature(params)
 
-    response = requests.post(f'{BYBIT_API_URL}/v2/private/order/create', params=params)
+    response = requests.post(f'{BYBIT_API_URL}/private/linear/order/create', params=params)
     print('Response:', response.json())
 
     # Armazena as informações da operação no banco de dados SQLite
@@ -115,7 +142,6 @@ def close():
     ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss))
     conn.commit()
     conn.close()
-
 
     return 'OK', 200
 
@@ -133,31 +159,43 @@ def webhook():
     qty = 1  # Quantidade de ordem
     leverage = 5  # Alavancagem
     take_profit = 2  # Take profit
-    stop_loss = 20  # Stop loss
+    stop_loss = ''  # Stop loss
 
     create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss)
 
     return 'OK', 200
 
 def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss):
+    # Recupera o preço atual do mercado
+    response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
+    data = response.json()
+    current_price = float(data['result'][0]['last_price'])
+
+    # Calcula o stop loss e o take profit com base no preço atual do mercado
+    stop_loss = current_price * 0.8  # 20% abaixo do preço atual do mercado
+    take_profit = current_price * 1.02  # 2% acima do preço atual do mercado
+
     timestamp = int(time.time() * 1000)
     params = {
         'api_key': API_KEY,
-        'symbol': symbol,
         'side': side,
+        'symbol': symbol,
         'order_type': order_type,
         'qty': qty,
         'time_in_force': 'GoodTillCancel',
         'leverage': leverage,
         'take_profit': take_profit,
         'stop_loss': stop_loss,
+        'reduce_only': False,
+        'close_on_trigger': False,
         'timestamp': timestamp
     }
 
     params['sign'] = generate_signature(params)
 
-    response = requests.post(f'{BYBIT_API_URL}/v2/private/order/create', params=params)
+    response = requests.post(f'{BYBIT_API_URL}/private/linear/order/create', params=params)
     print('Response:', response.json())
+
 
     # Armazena as informações da operação no banco de dados SQLite
     conn = sqlite3.connect('trading.db')
