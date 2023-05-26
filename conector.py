@@ -3,12 +3,16 @@ import requests
 import hmac
 import time
 import sqlite3
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = Flask(__name__)
 
 # Substitua pelas suas credenciais da Bybit
-API_KEY = 'YOUR_BYBIT_API_KEY'
-API_SECRET = 'YOUR_BYBIT_API_SECRET'
+API_KEY = os.getenv('BYBIT_API_KEY')
+API_SECRET = os.getenv('BYBIT_API_SECRET')
 
 BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
 
