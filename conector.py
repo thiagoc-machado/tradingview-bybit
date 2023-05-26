@@ -15,7 +15,7 @@ API_KEY = os.getenv('BYBIT_API_KEY')
 API_SECRET = os.getenv('BYBIT_API_SECRET')
 
 BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
-
+open_order_id = None
 
 # Cria o banco de dados SQLite e a tabela de operações
 conn = sqlite3.connect('trading.db')
@@ -41,6 +41,7 @@ conn.close()
 @app.route('/order', methods=['POST'])
 def order():
 
+    global open_order_id
     symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
     # Recupera o preço atual do mercado
     response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
@@ -77,8 +78,11 @@ def order():
     params['sign'] = generate_signature(params)
 
     response = requests.post(f'{BYBIT_API_URL}/private/linear/order/create', params=params)
-    print('Response:', response.json())
-
+    data = response.json()
+    print('Response:', data)
+    # Armazena o order_id da ordem aberta
+    open_order_id = data['result']['order_id']
+    print('Open order ID:', open_order_id)
     # Armazena as informações da operação no banco de dados SQLite
     conn = sqlite3.connect('trading.db')
     c = conn.cursor()
@@ -94,6 +98,9 @@ def order():
 @app.route('/close', methods=['POST'])
 
 def close():
+    global open_order_id
+    if open_order_id is None:
+        return 'No open order', 400
     symbol = 'DOGEUSDT'  # Substitua pelo símbolo que você deseja operar
 
     # Recupera o preço atual do mercado
@@ -125,6 +132,7 @@ def close():
         'stop_loss': stop_loss,
         'reduce_only': False,  # Adiciona o parâmetro reduce_only
         'close_on_trigger': False,  # Adiciona o parâmetro close_on_trigger
+        'order_id': open_order_id,
         'timestamp': timestamp
     }
 
@@ -142,7 +150,8 @@ def close():
     ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss))
     conn.commit()
     conn.close()
-
+    # Limpa o order_id da ordem aberta
+    open_order_id = None
     return 'OK', 200
 
 @app.route('/webhook', methods=['POST'])
