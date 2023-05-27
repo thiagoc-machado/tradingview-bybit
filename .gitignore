@@ -1,5 +1,5 @@
 # SQLite databases
-*.db
+#*.db
 
 # Python byte-compiled files
 *.pyc
