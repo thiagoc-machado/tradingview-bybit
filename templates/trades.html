@@ -39,7 +39,30 @@
         <button id="export" class="button is-link">Exportar para Excel</button>
         <a href="{{ url_for('logout') }}" class="button is-primary">Logout</a>
     </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#openLong').click(function() {
+                $.post('/order', { side: 'Buy' });
+            });
 
+            $('#openShort').click(function() {
+                $.post('/order', { side: 'Sell' });
+            });
+
+            $('#closeLong').click(function() {
+                $.post('/close', { side: 'Sell' });
+            });
+
+            $('#closeShort').click(function() {
+                $.post('/close', { side: 'Buy' });
+            });
+
+            $('#export').click(function() {
+                $.get('/export');
+            });
+        });
+    </script>
     <div class="table-container">
         <table class="table is-bordered is-fullwidth">
             <thead>
