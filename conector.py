@@ -217,8 +217,11 @@ def close():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    print('*'*50)
+    print('Webhook received')
     data = request.get_json()
     print('Received data:', data)
+    print('Webhook data read')
 
     # Extrai os detalhes do sinal do TradingView do objeto de dados
     symbol = data['ticker']  # Símbolo do ativo
@@ -228,6 +231,16 @@ def webhook():
     leverage = LEVERAGE # Alavancagem
     take_profit = 2  # Take profit
     stop_loss = ''  # Stop loss
+    print('*'*50)
+    print(f'Symbol: {symbol}')
+    print(f'Side: {side}')
+    print(f'Order type: {order_type}')
+    print(f'Quantity: {qty}')
+    print(f'Leverage: {leverage}')
+    print(f'Take profit: {take_profit}')
+    print(f'Stop loss: {stop_loss}')
+    print('*'*50)
+    
 
     if side in ['Buy', 'Sell']:
         # Se o sinal é de entrada (compra ou venda), cria uma nova ordem
