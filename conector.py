@@ -1,6 +1,6 @@
+import json
 from flask import Flask, request, render_template, send_file, redirect, url_for
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
-
 import requests
 import hmac
 import time
@@ -19,7 +19,6 @@ PASSWORD = os.getenv('PASSWORD')
 KEY = os.getenv('KEY')
 NAME= os.getenv('NAME')
 
-print('to aqui')
 app.secret_key = KEY 
 
 login_manager = LoginManager()
@@ -49,6 +48,7 @@ def login():
         user = User()
         user.id = username
         login_user(user)
+        print(f'Logged in as {username}')
         return redirect(url_for('trades'))  # Redireciona para a rota protegida
 
     return 'Invalid username or password'
@@ -219,18 +219,21 @@ def close():
 def webhook():
     print('*'*50)
     print('Webhook received')
-    data = request.get_json()
-    print('Received data:', data)
-    print('Webhook data read')
+    try:
+        data = request.get_json()
+        print('Received data:', data)
+    except json.JSONDecodeError:
+        print('Received invalid JSON')
+        return 'Invalid JSON', 400
 
     # Extrai os detalhes do sinal do TradingView do objeto de dados
-    symbol = data['ticker']  # Símbolo do ativo
-    side = data['strategy']['order']['action'].capitalize()  # Lado da ordem (Buy ou Sell)
-    order_type = ORDER  # Tipo de ordem
-    qty = QTD # Quantidade de ordem
-    leverage = LEVERAGE # Alavancagem
-    take_profit = 2  # Take profit
-    stop_loss = ''  # Stop loss
+    symbol = data['ticker'] 
+    side = data['strategy']['order']['action'].capitalize()
+    order_type = ORDER 
+    qty = QTD 
+    leverage = LEVERAGE 
+    take_profit = 2 
+    stop_loss = '' 
     print('*'*50)
     print(f'Symbol: {symbol}')
     print(f'Side: {side}')
@@ -241,16 +244,16 @@ def webhook():
     print(f'Stop loss: {stop_loss}')
     print('*'*50)
     
-
     if side in ['Buy', 'Sell']:
         # Se o sinal é de entrada (compra ou venda), cria uma nova ordem
+        print('open trade')
         create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss)
     elif side == 'Exit':
         # Se o sinal é de saída, fecha a posição aberta
+        print('close trade')
         close()
 
     return 'OK', 200
-
 
 def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss):
     # Recupera o preço atual do mercado
