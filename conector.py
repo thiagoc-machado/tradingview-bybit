@@ -257,13 +257,15 @@ def webhook():
 
 def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss):
     # Recupera o preço atual do mercado
-    print('resposta Bybit')
+    print('resposta Bybit (260)')
     try:
         response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
+        print(response.text)
+        print(response.status_code)
         data = response.json()
         print('Bybit api ok')
     except:
-        print('Erro na requisição da bybit')
+        print('Erro na requisição da bybit (268)')
         return 'Erro na requisição', 400
     
     current_price = float(data['result'][0]['last_price'])
@@ -298,6 +300,10 @@ def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss
     params['sign'] = generate_signature(params)
 
     response = requests.post(f'{BYBIT_API_URL}/private/linear/order/create', params=params)
+    print('#'*50)
+    print('304')
+    print(response.text)
+    print(response.status_code)
     print('Response:', response.json())
 
 
