@@ -111,7 +111,10 @@ def order():
     global open_order_id
     symbol = SYMBOL
     entry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+    print('def order')
     response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
+    print(response.text)
+    print(response.status_code)
     data = response.json()
     current_price = float(data['result'][0]['last_price'])
     side = request.form.get('side')
