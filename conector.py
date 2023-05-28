@@ -1,5 +1,5 @@
 import json
-from flask import Flask, Response, request, render_template, send_file, redirect, url_for, send_from_directory
+from flask import Flask, Response, request, render_template, send_file, redirect, url_for, send_from_directory, copy_current_request_context
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import requests
 import hmac
@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 import pandas as pd
-from telegram.ext import Updater, CommandHandler
+from telegram import Bot
+from telegram.error import TelegramError
 
 load_dotenv()
 
@@ -168,9 +169,13 @@ def order(side=None):
     ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss, entry_price, entry_time))
     conn.commit()
     conn.close()
-
-    send_message_to_telegram(f"Trade aberto: {symbol}, {side}, {qty}, {leverage}")
-
+    print('enviando mensagem para o telegram')
+    if side == 'Buy':
+        direction = 'Entrada Long'
+    if side == 'Sell':
+        direction = 'Entrada Short'
+    send_message_to_telegram(f"Trade aberto \n {symbol}, {direction} \n U$ {qty},00, Leverage: {leverage}")
+    print('mensagem enviada para o telegram')
     return 'OK', 200
 
 @app.route('/close', methods=['POST'])
@@ -190,19 +195,32 @@ def close(side=None):
     qty = QTD
     leverage = LEVERAGE
     timestamp = int(time.time() * 1000)
-
-    params = {
-        'api_key': API_KEY,
-        'symbol': symbol,
-        'side': side,
-        'order_type': order_type,
-        'qty': qty,
-        'time_in_force': 'GoodTillCancel',
-        'leverage': leverage,
-        'reduce_only': True,
-        'close_on_trigger': False,
-        'timestamp': timestamp
-    }
+    if side == 'Buy':
+        params = {
+            'api_key': API_KEY,
+            'symbol': symbol,
+            'side': side,
+            'order_type': order_type,
+            'qty': qty,
+            'time_in_force': 'GoodTillCancel',
+            'buyLeverage': leverage,
+            'reduce_only': True,
+            'close_on_trigger': False,
+            'timestamp': timestamp
+        }
+    if side == 'Sell':
+        params = {
+            'api_key': API_KEY,
+            'symbol': symbol,
+            'side': side,
+            'order_type': order_type,
+            'qty': qty,
+            'time_in_force': 'GoodTillCancel',
+            'sellLeverage': leverage,
+            'reduce_only': True,
+            'close_on_trigger': False,
+            'timestamp': timestamp
+        }
 
     params['sign'] = generate_signature(params)
 
@@ -224,10 +242,16 @@ def close(side=None):
     conn.commit()
     conn.close()
 
+    if side == 'Sell':
+        direction = 'Saída Long'
+    if side == 'Buy':
+        direction = 'Saída Short'
+
     open_order_id = None
+    print('enviando mensagem de fechamento via telegran')
+    send_message_to_telegram(f"Trade Encerrado: \n{symbol}, {direction} \n U$ {qty:.2f}, Leverage: {leverage} \n Duração: {duration}, Ganho: U$ {profit_loss:.2f}")
 
-    send_message_to_telegram(f"Trade Encerrado: {symbol}, {side}, {qty}, {leverage}, Duração: {duration}, Lucro/Prejuízo: U$ {profit_loss}")
-
+    print("mensagem enviada")
     return 'OK', 200
 
 
@@ -252,20 +276,21 @@ def webhook():
     # elif side == 'Exit':
     #     print(f'close trade {side}')
     #     close(side)
+    print(side)
 
-    if side == 'LongBuy':
+    if side == 'Longbuy':
         print(f'open trade {side}')
         order('Buy')
 
-    elif side == 'LongExit':
+    elif side == 'Longexit':
         print(f'close trade {side}')
         close('Sell')
 
-    elif side == 'ShortSell':
+    elif side == 'Shortsell':
         print(f'open trade {side}')
         order('Sell')
     
-    elif side == 'ShortExit':
+    elif side == 'Shortexit':
         print(f'close trade {side}')
         close('Buy')
 
@@ -328,8 +353,17 @@ def backup():
 
 
 def send_message_to_telegram(text):
-    updater = Updater(bot_token, use_context=True)
-    updater.bot.send_message(chat_id=bot_chat_id, text=text)
+    try:
+        url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        params = {
+            "chat_id": bot_chat_id,
+            "text": text
+        }
+        response = requests.get(url, params=params)
+        if response.status_code != 200:
+            print(f"Erro ao enviar mensagem para o Telegram: {response.text}")
+    except Exception as e:
+        print(f"Erro ao enviar mensagem para o Telegram: {e}")
 
 
 

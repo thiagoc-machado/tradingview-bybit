@@ -6,7 +6,7 @@ Open Long (Buy)
   "ticker": "{{ticker}}",
   "strategy": {
     "order": {
-      "action": "Buy"
+      "action": "LongBuy"
     }
   }
 }
@@ -18,7 +18,7 @@ Close Long (Sell)
   "ticker": "{{ticker}}",
   "strategy": {
     "order": {
-      "action": "Exit"
+      "action": "LongExit"
     }
   }
 }
@@ -30,7 +30,7 @@ Open Short (Sell)
   "ticker": "{{ticker}}",
   "strategy": {
     "order": {
-      "action": "Sell"
+      "action": "ShortSell"
     }
   }
 }
@@ -42,7 +42,7 @@ Close Short (Buy)
   "ticker": "{{ticker}}",
   "strategy": {
     "order": {
-      "action": "Exit"
+      "action": "ShortExit"
     }
   }
 }
