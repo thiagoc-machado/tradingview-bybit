@@ -33,10 +33,11 @@
     <br>
     <div class="buttons">
         <button id="openLong" class="button is-primary">Abrir Long</button>
-        <button id="openShort" class="button is-primary">Abrir Short</button>
         <button id="closeLong" class="button is-danger">Fechar Long</button>
+        <button id="openShort" class="button is-primary">Abrir Short</button>
         <button id="closeShort" class="button is-danger">Fechar Short</button>
         <button id="export" class="button is-link">Exportar para Excel</button>
+        <button id="backup" class="button is-link">Backup DB</button>
         <a href="{{ url_for('logout') }}" class="button is-primary">Logout</a>
     </div>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
@@ -60,6 +61,9 @@
 
             $('#export').click(function() {
                 $.get('/export');
+            });
+            $('#backup').click(function() {
+                $.get('/backup');
             });
         });
     </script>

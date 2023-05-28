@@ -1,5 +1,5 @@
 import json
-from flask import Flask, request, render_template, send_file, redirect, url_for
+from flask import Flask, Response, request, render_template, send_file, redirect, url_for, send_from_directory
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import requests
 import hmac
@@ -9,16 +9,35 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 import pandas as pd
+from telegram.ext import Updater, CommandHandler
 
 load_dotenv()
 
 app = Flask(__name__)  
 
+bot_token = os.getenv('TELEGRAN_TOKEN')
+bot_chat_id = os.getenv('TELEGRAN_ID')
+
 USERNAME = os.getenv('USERNAME')
 PASSWORD = os.getenv('PASSWORD')
 KEY = os.getenv('KEY')
 NAME= os.getenv('NAME')
+# Substitua pelas suas credenciais da Bybit
+API_KEY = os.getenv('BYBIT_API_KEY')
+API_SECRET = os.getenv('BYBIT_API_SECRET')
 
+BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
+
+SYMBOL = 'DOGEUSDT'         # Substitua pelo símbolo que vocé deseja operar
+QTD = 1000                   # Valor a operar
+LEVERAGE = 5                # Quantidade de leverage que vocé quer usar
+TAKE_PROFIT_LONG = 1.005    # 0.5% acima do preço atual do mercado
+STOP_LOSS_LONG = 0.8        # 20% abaixo do preço atual do mercado
+TAKE_PROFIT_SHORT = 0.995   # 0.5% abaixo do preço atual do mercado
+STOP_LOSS_SHORT = 1.2       # 20% acima do preço atual do mercado
+ORDER = 'Market'
+
+open_order_id = None
 app.secret_key = KEY 
 
 login_manager = LoginManager()
@@ -65,21 +84,6 @@ def logout():
 def protected():
     return 'Logged in as: ' + current_user.id
 
-# Substitua pelas suas credenciais da Bybit
-API_KEY = os.getenv('BYBIT_API_KEY')
-API_SECRET = os.getenv('BYBIT_API_SECRET')
-
-BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
-open_order_id = None
-
-SYMBOL = 'DOGEUSDT'         # Substitua pelo símbolo que vocé deseja operar
-QTD = 10                    # Valor a operar
-LEVERAGE = 5                # Quantidade de leverage que vocé quer usar
-TAKE_PROFIT_LONG = 1.02     # 2% acima do preço atual do mercado
-STOP_LOSS_LONG = 0.8        # 20% abaixo do preço atual do mercado
-TAKE_PROFIT_SHORT = 0.98    # 2% abaixo do preço atual do mercado
-STOP_LOSS_SHORT = 1.2       # 20% acima do preço atual do mercado
-ORDER = 'Market'
 
 # Cria o banco de dados SQLite e a tabela de operações
 conn = sqlite3.connect('trading.db')
@@ -106,8 +110,7 @@ conn.commit()
 conn.close()
 
 @app.route('/order', methods=['POST'])
-@login_required
-def order():
+def order(side=None):
     global open_order_id
     symbol = SYMBOL
     entry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
@@ -117,7 +120,12 @@ def order():
     print(response.status_code)
     data = response.json()
     current_price = float(data['result'][0]['last_price'])
-    side = request.form.get('side')
+
+    print(f"side antes do if {side}")
+    if side == None:
+        side = request.form.get('side')
+    print(f"side depois do if {side}")
+
     if side == 'Buy':
         stop_loss = round(current_price * STOP_LOSS_LONG, 8)
         take_profit = round(current_price * TAKE_PROFIT_LONG, 8)
@@ -161,11 +169,12 @@ def order():
     conn.commit()
     conn.close()
 
+    send_message_to_telegram(f"Trade aberto: {symbol}, {side}, {qty}, {leverage}")
+
     return 'OK', 200
 
 @app.route('/close', methods=['POST'])
-@login_required
-def close():
+def close(side=None):
     global open_order_id
     symbol = SYMBOL
     exit_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
@@ -173,10 +182,10 @@ def close():
     data = response.json()
     current_price = float(data['result'][0]['last_price'])
 
-    stop_loss = current_price * STOP_LOSS_LONG
-    take_profit = current_price * TAKE_PROFIT_LONG
-
-    side = request.form.get('side')
+    print(f"side antes do if {side}")
+    if side == None:
+        side = request.form.get('side')
+    
     order_type = ORDER
     qty = QTD
     leverage = LEVERAGE
@@ -216,7 +225,12 @@ def close():
     conn.close()
 
     open_order_id = None
+
+    send_message_to_telegram(f"Trade Encerrado: {symbol}, {side}, {qty}, {leverage}, Duração: {duration}, Lucro/Prejuízo: U$ {profit_loss}")
+
     return 'OK', 200
+
+
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -229,97 +243,33 @@ def webhook():
         print('Received invalid JSON')
         return 'Invalid JSON', 400
 
-    # Extrai os detalhes do sinal do TradingView do objeto de dados
-    symbol = data['ticker'] 
     side = data['strategy']['order']['action'].capitalize()
-    order_type = ORDER 
-    qty = QTD 
-    leverage = LEVERAGE 
-    take_profit = 2 
-    stop_loss = '' 
-    print('*'*50)
-    print(f'Symbol: {symbol}')
-    print(f'Side: {side}')
-    print(f'Order type: {order_type}')
-    print(f'Quantity: {qty}')
-    print(f'Leverage: {leverage}')
-    print(f'Take profit: {take_profit}')
-    print(f'Stop loss: {stop_loss}')
-    print('*'*50)
+
+    # if side in ['Buy', 'Sell']:
+    #     print(f'open trade {side}')
+    #     order(side)
+
+    # elif side == 'Exit':
+    #     print(f'close trade {side}')
+    #     close(side)
+
+    if side == 'LongBuy':
+        print(f'open trade {side}')
+        order('Buy')
+
+    elif side == 'LongExit':
+        print(f'close trade {side}')
+        close('Sell')
+
+    elif side == 'ShortSell':
+        print(f'open trade {side}')
+        order('Sell')
     
-    if side in ['Buy', 'Sell']:
-        # Se o sinal é de entrada (compra ou venda), cria uma nova ordem
-        print('open trade')
-        create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss)
-    elif side == 'Exit':
-        # Se o sinal é de saída, fecha a posição aberta
-        print('close trade')
-        close()
+    elif side == 'ShortExit':
+        print(f'close trade {side}')
+        close('Buy')
 
     return 'OK', 200
-
-def create_order(symbol, side, order_type, qty, leverage, take_profit, stop_loss):
-    # Recupera o preço atual do mercado
-    print('resposta Bybit (260)')
-    try:
-        response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
-        print(response.text)
-        print(response.status_code)
-        data = response.json()
-        print('Bybit api ok')
-    except:
-        print('Erro na requisição da bybit (268)')
-        return 'Erro na requisição', 400
-    
-    current_price = float(data['result'][0]['last_price'])
-
-    side = request.form.get('side')
-    # Calcula o stop loss e o take profit com base no preço atual do mercado
-    #side = request.form.get('side')  # Substitua pelo lado da ordem (Buy ou Sell)
-    print(side)
-    if side == 'Buy':
-        print('entrou buy')
-        stop_loss = round(current_price * STOP_LOSS_LONG, 8)  # 20% abaixo do preço atual do mercado
-        take_profit = round(current_price * TAKE_PROFIT_LONG, 8)  # 2% acima do preço atual do mercado
-    else:  # side == 'Sell'
-        stop_loss = round(current_price * STOP_LOSS_SHORT, 8)  # 20% acima do preço atual do mercado
-        take_profit = round(current_price * TAKE_PROFIT_SHORT, 8)  # 2% abaixo do preço atual do mercado
-    timestamp = int(time.time() * 1000)
-    params = {
-        'api_key': API_KEY,
-        'side': side,
-        'symbol': symbol,
-        'order_type': order_type,
-        'qty': qty,
-        'time_in_force': 'GoodTillCancel',
-        'leverage': leverage,
-        'take_profit': take_profit,
-        'stop_loss': stop_loss,
-        'reduce_only': False,
-        'close_on_trigger': False,
-        'timestamp': timestamp
-    }
-
-    params['sign'] = generate_signature(params)
-
-    response = requests.post(f'{BYBIT_API_URL}/private/linear/order/create', params=params)
-    print('#'*50)
-    print('304')
-    print(response.text)
-    print(response.status_code)
-    print('Response:', response.json())
-
-
-    # Armazena as informações da operação no banco de dados SQLite
-    conn = sqlite3.connect('trading.db')
-    c = conn.cursor()
-    c.execute('''
-        INSERT INTO trades (symbol, side, order_type, qty, leverage, take_profit, stop_loss)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss))
-    conn.commit()
-    conn.close()
-
 
 
 def generate_signature(params):
@@ -346,13 +296,42 @@ def trades():
 @app.route('/export', methods=['GET'])
 @login_required
 def export():
+    print('exportando em excel')
     conn = sqlite3.connect('trading.db')
     df = pd.read_sql_query("SELECT * from trades", conn)
     filename = 'trades.xlsx'
     df.to_excel(filename, index=False)
     conn.close()
-    return send_file(filename, as_attachment=True)
+    with open(filename, 'rb') as f:
+        content = f.read()
+    return Response(
+        content,
+        mimetype="application/vnd.ms-excel",
+        headers={"Content-disposition": f"attachment; filename={filename}"}
+    )
+
+
+
+@app.route('/backup', methods=['GET'])
+@login_required
+def backup():
+    print('Fazendo backup do banco de dados')
+    directory = os.getcwd()
+    filename = 'trading.db'
+    with open(filename, 'rb') as f:
+        content = f.read()
+    return Response(
+        content,
+        mimetype="application/octet-stream",
+        headers={"Content-disposition": f"attachment; filename={filename}"}
+    )
+
+
+def send_message_to_telegram(text):
+    updater = Updater(bot_token, use_context=True)
+    updater.bot.send_message(chat_id=bot_chat_id, text=text)
+
 
 
 if __name__ == '__main__':
-    app.run(port=5000)
+    app.run(port=5000, debug=True)
