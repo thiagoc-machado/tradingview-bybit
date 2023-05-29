@@ -28,7 +28,7 @@ API_SECRET = os.getenv('BYBIT_API_SECRET')
 BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
 
 SYMBOL = 'DOGEUSDT'         # Substitua pelo símbolo que vocé deseja operar
-QTD = 0.9                   # Defina a porcentagem do saldo em USDT que você deseja usar para a negociação
+QTD = 0.45                  # Defina a porcentagem do saldo em USDT que você deseja usar para a negociação por bot
 LEVERAGE = 3                # Quantidade de leverage que vocé quer usar
 TAKE_PROFIT_LONG = 1.005    # 0.5% acima do preço atual do mercado
 STOP_LOSS_LONG = 0.8        # 20% abaixo do preço atual do mercado
@@ -113,10 +113,8 @@ def order(side=None):
     global open_order_id
     symbol = SYMBOL
     entry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
-    print('def order')
     response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
-    print(response.text)
-    print(response.status_code)
+
     data = response.json()
     if data['ret_code'] != 0:
         print(f"Erro ao abrir a ordem: {data['ret_msg']}")
@@ -142,8 +140,6 @@ def order(side=None):
     # Obtenha o saldo atual da sua conta em USDT
     balance = get_balance()
     percentage = QTD  
-
-    # Calcule a quantidade de USDT que você deseja usar para a negociação
     usdt_amount = balance * percentage
 
     # Obtenha o preço atual de DOGEUSDT
@@ -277,7 +273,6 @@ def close(side=None):
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    print('*'*50)
     print('Webhook received')
     try:
         data = request.get_json()
@@ -458,10 +453,6 @@ def get_position_qty(symbol, side):
         if position['symbol'] == symbol and position['side'] == opposite_side:
             return float(position['size'])
     return 0.0
-
-
-
-
 
 
 if __name__ == '__main__':
