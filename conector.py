@@ -9,8 +9,6 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 import pandas as pd
-from telegram import Bot
-from telegram.error import TelegramError
 
 load_dotenv()
 
@@ -30,8 +28,8 @@ API_SECRET = os.getenv('BYBIT_API_SECRET')
 BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
 
 SYMBOL = 'DOGEUSDT'         # Substitua pelo símbolo que vocé deseja operar
-QTD = 1000                   # Valor a operar
-LEVERAGE = 5                # Quantidade de leverage que vocé quer usar
+QTD = 0.9                   # Defina a porcentagem do saldo em USDT que você deseja usar para a negociação
+LEVERAGE = 3                # Quantidade de leverage que vocé quer usar
 TAKE_PROFIT_LONG = 1.005    # 0.5% acima do preço atual do mercado
 STOP_LOSS_LONG = 0.8        # 20% abaixo do preço atual do mercado
 TAKE_PROFIT_SHORT = 0.995   # 0.5% abaixo do preço atual do mercado
@@ -120,12 +118,19 @@ def order(side=None):
     print(response.text)
     print(response.status_code)
     data = response.json()
+    if data['ret_code'] != 0:
+        print(f"Erro ao abrir a ordem: {data['ret_msg']}")
+        send_message_to_telegram(f"Erro ao fechar a ordem: \n{data['ret_msg']} \n{symbol}, \n{direction}\nLeverage: {get_leverage(symbol)}")
+
+        return 'Erro ao fechar a ordem', 400
     current_price = float(data['result'][0]['last_price'])
 
-    print(f"side antes do if {side}")
+    if get_leverage(symbol) !=  LEVERAGE:
+        set_leverage(symbol, LEVERAGE)
+        print(f"Leverage after setting: {get_leverage(symbol)}")
+
     if side == None:
         side = request.form.get('side')
-    print(f"side depois do if {side}")
 
     if side == 'Buy':
         stop_loss = round(current_price * STOP_LOSS_LONG, 8)
@@ -134,8 +139,23 @@ def order(side=None):
         stop_loss = round(current_price * STOP_LOSS_SHORT, 8)
         take_profit = round(current_price * TAKE_PROFIT_SHORT, 8)
 
+    # Obtenha o saldo atual da sua conta em USDT
+    balance = get_balance()
+    percentage = QTD  
+
+    # Calcule a quantidade de USDT que você deseja usar para a negociação
+    usdt_amount = balance * percentage
+
+    # Obtenha o preço atual de DOGEUSDT
+    response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
+    data = response.json()
+    current_price = float(data['result'][0]['last_price'])
+
+    # Calcule a quantidade de DOGE correspondente à quantidade de USDT que você deseja usar
+    qty = (usdt_amount / current_price) * LEVERAGE
+    print(round(qty, 0))
+
     order_type = ORDER
-    qty = QTD
     leverage = LEVERAGE
     timestamp = int(time.time() * 1000)
 
@@ -144,9 +164,10 @@ def order(side=None):
         'symbol': symbol,
         'side': side,
         'order_type': order_type,
-        'qty': qty,
+        'qty': round(qty, 0),
         'time_in_force': 'GoodTillCancel',
-        'leverage': leverage,
+        'buyLeverage': leverage,
+        'sellLeverage': leverage,
         'take_profit': take_profit,
         'stop_loss': stop_loss,
         'reduce_only': False,
@@ -174,7 +195,7 @@ def order(side=None):
         direction = 'Entrada Long'
     if side == 'Sell':
         direction = 'Entrada Short'
-    send_message_to_telegram(f"Trade aberto \n {symbol}, {direction} \n U$ {qty},00, Leverage: {leverage}")
+    send_message_to_telegram(f"Trade aberto \n {symbol}, {direction} \n U$ {usdt_amount:,.2f}, \n Leverage: {get_leverage(symbol)} \n Valor com leverage: U$ {(usdt_amount*3):,.2f}\n Saldo Restante: U$ {get_balance():,.2f}")
     print('mensagem enviada para o telegram')
     return 'OK', 200
 
@@ -182,50 +203,54 @@ def order(side=None):
 def close(side=None):
     global open_order_id
     symbol = SYMBOL
+
+    if get_leverage(symbol) !=  LEVERAGE:
+        set_leverage(symbol, LEVERAGE)
+        print(f"Leverage after setting: {get_leverage(symbol)}")
+
     exit_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
     response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
-    data = response.json()
-    current_price = float(data['result'][0]['last_price'])
 
-    print(f"side antes do if {side}")
     if side == None:
         side = request.form.get('side')
     
     order_type = ORDER
-    qty = QTD
+    print(f"side depois do if {side}")
+    qty = get_position_qty(symbol, side)
+    print(f"Quantity: {qty}")
     leverage = LEVERAGE
     timestamp = int(time.time() * 1000)
-    if side == 'Buy':
-        params = {
-            'api_key': API_KEY,
-            'symbol': symbol,
-            'side': side,
-            'order_type': order_type,
-            'qty': qty,
-            'time_in_force': 'GoodTillCancel',
-            'buyLeverage': leverage,
-            'reduce_only': True,
-            'close_on_trigger': False,
-            'timestamp': timestamp
-        }
-    if side == 'Sell':
-        params = {
-            'api_key': API_KEY,
-            'symbol': symbol,
-            'side': side,
-            'order_type': order_type,
-            'qty': qty,
-            'time_in_force': 'GoodTillCancel',
-            'sellLeverage': leverage,
-            'reduce_only': True,
-            'close_on_trigger': False,
-            'timestamp': timestamp
-        }
+    params = {
+        'api_key': API_KEY,
+        'symbol': symbol,
+        'side': side,
+        'order_type': order_type,
+        'qty': qty,
+        'time_in_force': 'GoodTillCancel',
+        'buyLeverage': leverage,
+        'sellLeverage': leverage,
+        'reduce_only': True,
+        'close_on_trigger': False,
+        'timestamp': timestamp
+    }
 
     params['sign'] = generate_signature(params)
 
     response = requests.post(f'{BYBIT_API_URL}/private/linear/order/create', params=params)
-    exit_price = response.json()['result']['price']
+    data = response.json()
+
+    if side == 'Sell':
+        direction = 'Saída Long'
+    if side == 'Buy':
+        direction = 'Saída Short'
+
+    if data['ret_code'] != 0:
+        print(f"Erro ao fechar a ordem: {data['ret_msg']}")
+        send_message_to_telegram(f"Erro ao fechar a ordem: \n{data['ret_msg']} \n{symbol}, \n{direction}\nLeverage: {get_leverage(symbol)}")
+
+        return 'Erro ao fechar a ordem', 400
+
+    exit_price = data['result']['price']
 
     conn = sqlite3.connect('trading.db')
     c = conn.cursor()
@@ -242,18 +267,12 @@ def close(side=None):
     conn.commit()
     conn.close()
 
-    if side == 'Sell':
-        direction = 'Saída Long'
-    if side == 'Buy':
-        direction = 'Saída Short'
-
     open_order_id = None
     print('enviando mensagem de fechamento via telegran')
-    send_message_to_telegram(f"Trade Encerrado: \n{symbol}, {direction} \n U$ {qty:.2f}, Leverage: {leverage} \n Duração: {duration}, Ganho: U$ {profit_loss:.2f}")
+    send_message_to_telegram(f"Trade Encerrado: \n{symbol}, {direction} \nVenda a U$ {qty:,.2f} \nLeverage: {get_leverage(symbol)} \nDuração: {duration}, \nGanho: U$ {profit_loss:.2f} \nPreço de Entrada: U$ {entry_price:.4f} \nPreço de Saída: U$ {exit_price:.4f}  \nSaldo Total: U$ {get_balance():.2f}")
 
     print("mensagem enviada")
     return 'OK', 200
-
 
 
 @app.route('/webhook', methods=['POST'])
@@ -268,15 +287,6 @@ def webhook():
         return 'Invalid JSON', 400
 
     side = data['strategy']['order']['action'].capitalize()
-
-    # if side in ['Buy', 'Sell']:
-    #     print(f'open trade {side}')
-    #     order(side)
-
-    # elif side == 'Exit':
-    #     print(f'close trade {side}')
-    #     close(side)
-    print(side)
 
     if side == 'Longbuy':
         print(f'open trade {side}')
@@ -364,6 +374,93 @@ def send_message_to_telegram(text):
             print(f"Erro ao enviar mensagem para o Telegram: {response.text}")
     except Exception as e:
         print(f"Erro ao enviar mensagem para o Telegram: {e}")
+
+def set_leverage(symbol, leverage):
+    timestamp = int(time.time() * 1000)
+
+    params = {
+        'api_key': API_KEY,
+        'symbol': symbol,
+        'buy_leverage': int(leverage),  # para posições long
+        'sell_leverage': int(leverage),  # para posições short
+        'timestamp': timestamp
+    }
+
+    params['sign'] = generate_signature(params)
+
+    response = requests.post(f'{BYBIT_API_URL}/private/linear/position/set-leverage', params=params)
+    data = response.json()
+    if data['ret_code'] != 0:
+        print(f"Erro ao definir a alavancagem: {data['ret_msg']}")
+        return False
+        
+    return True
+    
+def get_leverage(symbol):
+    timestamp = int(time.time() * 1000)
+
+    params = {
+        'api_key': API_KEY,
+        'symbol': symbol,
+        'timestamp': timestamp
+    }
+
+    params['sign'] = generate_signature(params)
+
+    response = requests.get(f'{BYBIT_API_URL}/private/linear/position/list', params=params)
+    data = response.json()
+
+    if data['ret_code'] != 0:
+        print(f"Erro ao obter a posição: {data['ret_msg']}")
+        return None
+
+    return data['result'][0]['leverage']
+
+
+def get_balance():
+    timestamp = int(time.time() * 1000)
+
+    params = {
+        'api_key': API_KEY,
+        'timestamp': timestamp
+    }
+
+    params['sign'] = generate_signature(params)
+
+    response = requests.get(f'{BYBIT_API_URL}/v2/private/wallet/balance', params=params)
+    data = response.json()
+
+    if data['ret_code'] != 0:
+        print(f"Erro ao recuperar o saldo: {data['ret_msg']}")
+        return None
+
+    return data['result']['USDT']['available_balance']
+
+def get_position_qty(symbol, side):
+    timestamp = int(time.time() * 1000)
+    opposite_side = 'Sell' if side == 'Buy' else 'Buy'
+    params = {
+        'api_key': API_KEY,
+        'symbol': symbol,
+        'timestamp': timestamp
+    }
+
+    params['sign'] = generate_signature(params)
+
+    response = requests.get(f'{BYBIT_API_URL}/private/linear/position/list', params=params)
+    data = response.json()
+
+    if data['ret_code'] != 0:
+        print(f"Erro ao obter a posição: {data['ret_msg']}")
+        return None
+
+    for position in data['result']:
+        if position['symbol'] == symbol and position['side'] == opposite_side:
+            return float(position['size'])
+    return 0.0
+
+
+
 
 
 

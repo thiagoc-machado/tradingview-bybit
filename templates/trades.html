@@ -67,6 +67,13 @@
             });
         });
     </script>
+    <div id="plot"></div>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        var plot_data = {{ plot|safe }};
+        Plotly.newPlot('plot', plot_data);
+    </script>
+
     <div class="table-container">
         <table class="table is-bordered is-fullwidth">
             <thead>
