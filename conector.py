@@ -26,7 +26,7 @@ API_KEY = os.getenv('BYBIT_API_KEY')
 API_SECRET = os.getenv('BYBIT_API_SECRET')
 
 BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
-
+FEE = 0.00075
 SYMBOL = 'DOGEUSDT'         # Substitua pelo símbolo que vocé deseja operar
 QTD = 0.45                  # Defina a porcentagem do saldo em USDT que você deseja usar para a negociação por bot
 LEVERAGE = 3                # Quantidade de leverage que vocé quer usar
@@ -102,7 +102,11 @@ c.execute('''
         profit_loss REAL,
         entry_time TEXT,
         exit_time TEXT,
-        duration TEXT
+        duration TEXT,
+        saldo_init REAL,
+        saldo_final REAL,
+        profit REAL,
+        profit_percentage REAL
     )
 ''')
 conn.commit()
@@ -113,9 +117,15 @@ def order(side=None):
     global open_order_id
     symbol = SYMBOL
     entry_time = time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())
+    balance = get_balance()
     response = requests.get(f'{BYBIT_API_URL}/v2/public/tickers?symbol={symbol}')
+    try:
+        data = response.json()
+    except json.decoder.JSONDecodeError:
+        print("Erro ao abrir a ordem")
+        send_message_to_telegram(f"Erro ao abrir a ordem: \n{symbol}, \n{direction}\nLeverage: {get_leverage(symbol)}")
+        return 'Erro ao abrir a ordem', 400
 
-    data = response.json()
     if data['ret_code'] != 0:
         print(f"Erro ao abrir a ordem: {data['ret_msg']}")
         send_message_to_telegram(f"Erro ao fechar a ordem: \n{data['ret_msg']} \n{symbol}, \n{direction}\nLeverage: {get_leverage(symbol)}")
@@ -138,7 +148,7 @@ def order(side=None):
         take_profit = round(current_price * TAKE_PROFIT_SHORT, 8)
 
     # Obtenha o saldo atual da sua conta em USDT
-    balance = get_balance()
+    
     percentage = QTD  
     usdt_amount = balance * percentage
 
@@ -177,14 +187,15 @@ def order(side=None):
     data = response.json()
     open_order_id = data['result']['order_id']
     entry_price = data['result']['price']
-
+    saldo_init = balance
     conn = sqlite3.connect('trading.db')
     c = conn.cursor()
     c.execute('''
-        INSERT INTO trades (symbol, side, order_type, qty, leverage, take_profit, stop_loss, entry_price, entry_time)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss, entry_price, entry_time))
+    INSERT INTO trades (symbol, side, order_type, qty, leverage, take_profit, stop_loss, entry_price, entry_time, saldo_init)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss, entry_price, entry_time, saldo_init))
     conn.commit()
+
     conn.close()
     print('enviando mensagem para o telegram')
     if side == 'Buy':
@@ -211,9 +222,7 @@ def close(side=None):
         side = request.form.get('side')
     
     order_type = ORDER
-    print(f"side depois do if {side}")
     qty = get_position_qty(symbol, side)
-    print(f"Quantity: {qty}")
     leverage = LEVERAGE
     timestamp = int(time.time() * 1000)
     params = {
@@ -253,19 +262,32 @@ def close(side=None):
     c.execute('SELECT entry_time, entry_price FROM trades WHERE id = (SELECT MAX(id) FROM trades)')
     entry_time, entry_price = c.fetchone()
     duration = str(datetime.strptime(exit_time, '%Y-%m-%d %H:%M:%S') - datetime.strptime(entry_time, '%Y-%m-%d %H:%M:%S'))
-    profit_loss = exit_price - entry_price if side == 'Sell' else entry_price - exit_price
+    # profit_loss = exit_price - entry_price if side == 'Sell' else entry_price - exit_price
+    balance = get_balance()
+    percentage = QTD  
+    usdt_amount = balance * percentage
+    # Calcular o lucro ou perda
+    profit_loss = LEVERAGE * (exit_price - entry_price) * usdt_amount if side == 'Sell' else LEVERAGE * (entry_price - exit_price) * usdt_amount
 
+    fee = FEE * usdt_amount  # Bybit taker fee
+    profit_loss -= fee
+    c.execute('SELECT saldo_init FROM trades WHERE id = (SELECT MAX(id) FROM trades)')
+    saldo_init = c.fetchone()[0]
+    saldo_final = get_balance()
+    profit = saldo_final - saldo_init
+    profit_percentage = (profit / saldo_init) * 100
+    # Atualizar o banco de dados
     c.execute('''
         UPDATE trades
-        SET exit_price = ?, profit_loss = ?, exit_time = ?, duration = ?
+        SET exit_price = ?, profit_loss = ?, exit_time = ?, duration = ?, saldo_final = ?, profit = ?, profit_percentage = ?
         WHERE id = (SELECT MAX(id) FROM trades)
-    ''', (exit_price, profit_loss, exit_time, duration))
+    ''', (exit_price, profit_loss, exit_time, duration, saldo_final, profit, profit_percentage))
     conn.commit()
     conn.close()
 
     open_order_id = None
     print('enviando mensagem de fechamento via telegran')
-    send_message_to_telegram(f"Trade Encerrado: \n{symbol}, {direction} \nVenda a U$ {qty:,.2f} \nLeverage: {get_leverage(symbol)} \nDuração: {duration}, \nGanho: U$ {profit_loss:.2f} \nPreço de Entrada: U$ {entry_price:.4f} \nPreço de Saída: U$ {exit_price:.4f}  \nSaldo Total: U$ {get_balance():.2f}")
+    send_message_to_telegram(f"Trade Encerrado: \n{symbol}, {direction} \nQuant. DOGE {(qty):,.2f} \nLeverage: {get_leverage(symbol)} \nDuração: {duration}, \nGanho: U$ {profit_loss:,.2f} \nPreço de Entrada: U$ {entry_price:,.4f} \nPreço de Saída: U$ {exit_price:,.4f} \nFee Bybit: U$ {fee:,.2f} \nSaldo inicial:{saldo_init:,.2f} \nSaldo final: U$ {get_balance():,.2f} \nLucro: U$ {profit:,.2f} \nLucro: {profit_percentage:,.2f}% \n")
 
     print("mensagem enviada")
     return 'OK', 200
@@ -281,22 +303,22 @@ def webhook():
         print('Received invalid JSON')
         return 'Invalid JSON', 400
 
-    side = data['strategy']['order']['action'].capitalize()
-
-    if side == 'Longbuy':
-        print(f'open trade {side}')
+    sides = data['strategy']['order']['action'].capitalize()
+    send_message_to_telegram(f"Sinal Webhook recebido: \n BOT 01\noperação {sides}")
+    if sides == 'Longbuy':
+        print(f'open trade {sides}')
         order('Buy')
 
-    elif side == 'Longexit':
-        print(f'close trade {side}')
+    elif sides == 'Longexit':
+        print(f'close trade {sides}')
         close('Sell')
 
-    elif side == 'Shortsell':
-        print(f'open trade {side}')
+    elif sides == 'Shortsell':
+        print(f'open trade {sides}')
         order('Sell')
     
-    elif side == 'Shortexit':
-        print(f'close trade {side}')
+    elif sides == 'Shortexit':
+        print(f'close trade {sides}')
         close('Buy')
 
     return 'OK', 200
@@ -318,10 +340,9 @@ def trades():
     conn.close()
 
     # Convert each trade to a dictionary
-    trades = [dict(zip(['id', 'symbol', 'side', 'order_type', 'qty', 'leverage', 'take_profit', 'stop_loss', 'entry_price', 'exit_price', 'profit_loss', 'entry_time', 'exit_time', 'duration'], trade)) for trade in trades]
+    trades = [dict(zip(['id', 'symbol', 'side', 'order_type', 'qty', 'leverage', 'take_profit', 'stop_loss', 'entry_price', 'exit_price', 'profit_loss', 'entry_time', 'exit_time', 'duration', 'saldo_init', 'saldo_final', 'profit', 'profit_percentage'], trade)) for trade in trades]
 
     return render_template('trades.html', trades=trades)
-
 
 @app.route('/export', methods=['GET'])
 @login_required

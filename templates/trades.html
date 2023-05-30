@@ -91,6 +91,10 @@
                     <th>Entry Time</th>
                     <th>Exit Time</th>
                     <th>Duration</th>
+                    <th>Saldo Inicial</th>
+                    <th>Saldo Final</th>
+                    <th>Profit</th>
+                    <th>Profit Percentage</th>
                 </tr>
             </thead>
             <tbody>
@@ -99,20 +103,25 @@
                     <td>{{ trade.symbol }}</td>
                     <td>{{ trade.side }}</td>
                     <td>{{ trade.order_type }}</td>
-                    <td>{{ trade.qty }}</td>
+                    <td>{{ "%.2f"|format(trade.qty) }}</td>
                     <td>{{ trade.leverage }}</td>
-                    <td>{{ trade.take_profit }}</td>
-                    <td>{{ trade.stop_loss }}</td>
-                    <td>{{ trade.entry_price }}</td>
-                    <td>{{ trade.exit_price }}</td>
-                    <td>{{ trade.profit_loss }}</td>
+                    <td>DOGE {{ "%.4f"|format(trade.take_profit) }}</td>
+                    <td>DOGE {{ "%.4f"|format(trade.stop_loss) }}</td>
+                    <td>DOGE {{ "%.4f"|format(trade.entry_price) }}</td>
+                    <td>DOGE {{ "%.4f"|format(trade.exit_price) }}</td>
+                    <td>DOGE {{ "%.4f"|format(trade.profit_loss) }}</td>
                     <td>{{ trade.entry_time }}</td>
                     <td>{{ trade.exit_time }}</td>
                     <td>{{ trade.duration }}</td>
+                    <td>USDT {{ "%.2f"|format(trade.saldo_init) }}</td>
+                    <td>USDT {{ "%.2f"|format(trade.saldo_final) }}</td>
+                    <td>USDT {{ "%.2f"|format(trade.profit) }}</td>
+                    <td>{{ "%.2f"|format(trade.profit_percentage) }}%</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
+    
 </body>
 </html>
