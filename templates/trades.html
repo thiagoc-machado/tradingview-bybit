@@ -103,20 +103,118 @@
                     <td>{{ trade.symbol }}</td>
                     <td>{{ trade.side }}</td>
                     <td>{{ trade.order_type }}</td>
-                    <td>{{ "%.2f"|format(trade.qty) }}</td>
-                    <td>{{ trade.leverage }}</td>
-                    <td>DOGE {{ "%.4f"|format(trade.take_profit) }}</td>
-                    <td>DOGE {{ "%.4f"|format(trade.stop_loss) }}</td>
-                    <td>DOGE {{ "%.4f"|format(trade.entry_price) }}</td>
-                    <td>DOGE {{ "%.4f"|format(trade.exit_price) }}</td>
-                    <td>DOGE {{ "%.4f"|format(trade.profit_loss) }}</td>
-                    <td>{{ trade.entry_time }}</td>
-                    <td>{{ trade.exit_time }}</td>
-                    <td>{{ trade.duration }}</td>
-                    <td>USDT {{ "%.2f"|format(trade.saldo_init) }}</td>
-                    <td>USDT {{ "%.2f"|format(trade.saldo_final) }}</td>
-                    <td>USDT {{ "%.2f"|format(trade.profit) }}</td>
-                    <td>{{ "%.2f"|format(trade.profit_percentage) }}%</td>
+                    <td>
+                      {% if trade.qty is not none %}
+                        {{ "%.2f"|format(trade.qty) }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.leverage is not none %}
+                        {{ trade.leverage }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.take_profit is not none %}
+                        DOGE {{ "%.4f"|format(trade.take_profit) }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.stop_loss is not none %}
+                        DOGE {{ "%.4f"|format(trade.stop_loss) }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.entry_price is not none %}
+                        DOGE {{ "%.4f"|format(trade.entry_price) }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.exit_price is not none %}
+                        DOGE {{ "%.4f"|format(trade.exit_price) }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.profit_loss is not none %}
+                        DOGE {{ "%.4f"|format(trade.profit_loss) }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.entry_time is not none %}
+                        {{ trade.entry_time }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.exit_time is not none %}
+                        {{ trade.exit_time }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.duration is not none %}
+                        {{ trade.duration }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.saldo_init is not none %}
+                        USDT {{ "%.2f"|format(trade.saldo_init) }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.saldo_final is not none %}
+                        USDT {{ "%.2f"|format(trade.saldo_final) }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.profit is not none %}
+                        USDT {{ "%.2f"|format(trade.profit) }}
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
+                    <td>
+                      {% if trade.profit_percentage is not none %}
+                        {{ "%.2f"|format(trade.profit_percentage) }}%
+                      {% else %}
+                        N/A
+                      {% endif %}
+                    </td>
+
                 </tr>
                 {% endfor %}
             </tbody>

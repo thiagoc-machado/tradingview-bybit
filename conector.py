@@ -106,7 +106,8 @@ c.execute('''
         saldo_init REAL,
         saldo_final REAL,
         profit REAL,
-        profit_percentage REAL
+        profit_percentage REAL,
+        fee REAL
     )
 ''')
 conn.commit()
@@ -188,12 +189,13 @@ def order(side=None):
     open_order_id = data['result']['order_id']
     entry_price = data['result']['price']
     saldo_init = balance
+    fee = usdt_amount * FEE
     conn = sqlite3.connect('trading.db')
     c = conn.cursor()
     c.execute('''
-    INSERT INTO trades (symbol, side, order_type, qty, leverage, take_profit, stop_loss, entry_price, entry_time, saldo_init)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss, entry_price, entry_time, saldo_init))
+    INSERT INTO trades (symbol, side, order_type, qty, leverage, take_profit, stop_loss, entry_price, entry_time, saldo_init, fee)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (symbol, side, order_type, qty, leverage, take_profit, stop_loss, entry_price, entry_time, saldo_init, fee))
     conn.commit()
 
     conn.close()
@@ -202,7 +204,7 @@ def order(side=None):
         direction = 'Entrada Long'
     if side == 'Sell':
         direction = 'Entrada Short'
-    send_message_to_telegram(f"Trade aberto \n {symbol}, {direction} \n U$ {usdt_amount:,.2f}, \n Leverage: {get_leverage(symbol)} \n Valor com leverage: U$ {(usdt_amount*3):,.2f}\n Saldo Restante: U$ {get_balance():,.2f}")
+    send_message_to_telegram(f"Trade aberto \n {symbol}, {direction}  \n Leverage: {get_leverage(symbol)} \n Saldo Total inicial: U$ {balance:,.2f} \n Saldo usado: U$ {usdt_amount:,.2f} \n Valor com leverage usado: U$ {(usdt_amount*3):,.2f} \n Saldo Restante: U$ {get_balance():,.2f} \n Fee abertura: U$ {fee:,.2f}")
     print('mensagem enviada para o telegram')
     return 'OK', 200
 
@@ -268,8 +270,8 @@ def close(side=None):
     usdt_amount = balance * percentage
     # Calcular o lucro ou perda
     profit_loss = LEVERAGE * (exit_price - entry_price) * usdt_amount if side == 'Sell' else LEVERAGE * (entry_price - exit_price) * usdt_amount
-
-    fee = FEE * usdt_amount  # Bybit taker fee
+    c.execute('SELECT fee FROM trades WHERE id = (SELECT MAX(id) FROM trades)')
+    fee = (FEE * usdt_amount) + c.fetchone()[0]
     profit_loss -= fee
     c.execute('SELECT saldo_init FROM trades WHERE id = (SELECT MAX(id) FROM trades)')
     saldo_init = c.fetchone()[0]
@@ -287,7 +289,7 @@ def close(side=None):
 
     open_order_id = None
     print('enviando mensagem de fechamento via telegran')
-    send_message_to_telegram(f"Trade Encerrado: \n{symbol}, {direction} \nQuant. DOGE {(qty):,.2f} \nLeverage: {get_leverage(symbol)} \nDuração: {duration}, \nGanho: U$ {profit_loss:,.2f} \nPreço de Entrada: U$ {entry_price:,.4f} \nPreço de Saída: U$ {exit_price:,.4f} \nFee Bybit: U$ {fee:,.2f} \nSaldo inicial:{saldo_init:,.2f} \nSaldo final: U$ {get_balance():,.2f} \nLucro: U$ {profit:,.2f} \nLucro: {profit_percentage:,.2f}% \n")
+    send_message_to_telegram(f"Trade Encerrado: \n{symbol}, {direction} \nQuant. DOGE {(qty):,.2f} \nLeverage: {get_leverage(symbol)} \nDuração: {duration}, \nGanho: U$ {profit_loss:,.2f} \nPreço de Entrada: {entry_price:,.4f} \nPreço de Saída: {exit_price:,.4f} \nFee Bybit: U$ {fee:,.2f} \nSaldo inicial:{saldo_init:,.2f} \nSaldo final: U$ {get_balance():,.2f} \nLucro: U$ {profit:,.2f} \nLucro: {profit_percentage:,.2f}% \n")
 
     print("mensagem enviada")
     return 'OK', 200
