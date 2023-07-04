@@ -27,7 +27,7 @@ API_SECRET = os.getenv('BYBIT_API_SECRET')
 
 BYBIT_API_URL = 'https://api-testnet.bybit.com'  # URL da API da Bybit Testnet
 FEE = 0.00075
-SYMBOL = 'DOGEUSDT'         # Substitua pelo símbolo que vocé deseja operar
+SYMBOL = 'BTCUSDT'         # Substitua pelo símbolo que vocé deseja operar
 QTD = 0.45                  # Defina a porcentagem do saldo em USDT que você deseja usar para a negociação por bot
 LEVERAGE = 3                # Quantidade de leverage que vocé quer usar
 TAKE_PROFIT_LONG = 1.005    # 0.5% acima do preço atual do mercado
